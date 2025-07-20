@@ -1,6 +1,6 @@
 # NAME: OKX
 # AUTHOR: Tanwg21
-# UPDATED: 2024-10-10
+# UPDATED: 2025-07-20
 # DOMAIN-SUFFIX: 5
 # TOTAL: 5
 DOMAIN-SUFFIX,okex.com
@@ -9,3 +9,4 @@ DOMAIN-SUFFIX,okx.com
 DOMAIN-SUFFIX,wsdexpri.okx.com.cdn.cloudflare.net
 DOMAIN-SUFFIX,www.okx.com.cdn.cloudflare.net
 DOMAIN-SUFFIX,wspri.okx.com.cdn.cloudflare.net
+DOMAIN-SUFFIX,web3.okx.com.cdn.cloudflare.net
