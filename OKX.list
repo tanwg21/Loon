@@ -10,30 +10,3 @@ DOMAIN-SUFFIX,wsdexpri.okx.com.cdn.cloudflare.net
 DOMAIN-SUFFIX,www.okx.com.cdn.cloudflare.net
 DOMAIN-SUFFIX,wspri.okx.com.cdn.cloudflare.net
 DOMAIN-SUFFIX,web3.okx.com.cdn.cloudflare.net
-
-# ---------- LinkedIn ----------
-
-DOMAIN-SUFFIX,linkedin.com,PROXY
-
-DOMAIN-SUFFIX,linkedin.cn,PROXY
-
-DOMAIN-SUFFIX,licdn.com,PROXY
-
-DOMAIN-SUFFIX,linkedinstatic.com,PROXY
-
-DOMAIN-SUFFIX,lnkd.in,PROXY
-
-# ---------- Job ----------
-
-DOMAIN-SUFFIX,indeed.com,PROXY
-
-DOMAIN-SUFFIX,glassdoor.com,PROXY
-
-DOMAIN-SUFFIX,ziprecruiter.com,PROXY
-
-DOMAIN-SUFFIX,monster.com,PROXY
-
-DOMAIN-SUFFIX,careerbuilder.com,PROXY
-
-DOMAIN-SUFFIX,dice.com,PROXY
-
