@@ -1,0 +1,9 @@
+#!name=Dounai每日签到
+#!desc=Dounai自动签到插件
+#!author=yourname
+
+[Script]
+
+http-request ^https:\/\/dounai\.pro\/user\/panel script-path=dounai.cookie.js,requires-body=false,tag=Dounai获取Cookie
+
+cron "10 0 * * *" script-path=dounai.checkin.js,tag=Dounai每日签到
