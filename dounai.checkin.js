@@ -44,24 +44,31 @@ $httpClient.post({
         let obj=JSON.parse(data);
 
 
-        if(obj.ret==1){
+if (obj.ret == 1) {
 
-            $notification.post(
-                "Dounai签到成功",
-                "",
-                obj.msg
-            );
+    $notification.post(
+        "✅ Dounai",
+        "签到成功",
+        obj.msg
+    );
 
-        }else{
+} else if (obj.msg && obj.msg.includes("续过命")) {
 
-            $notification.post(
-                "Dounai签到",
-                "失败",
-                obj.msg
-            );
+    $notification.post(
+        "ℹ️ Dounai",
+        "今天已签到",
+        obj.msg
+    );
 
-        }
+} else {
 
+    $notification.post(
+        "❌ Dounai",
+        "签到失败",
+        obj.msg || data
+    );
+
+}
 
     }catch(e){
 
