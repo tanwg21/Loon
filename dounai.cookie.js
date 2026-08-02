@@ -1,22 +1,10 @@
-if (typeof $request !== "undefined") {
+const newCookie = $request.headers["Cookie"] || $request.headers["cookie"];
+const oldCookie = $persistentStore.read("dounai_cookie");
 
-    const cookie =
-    $request.headers["Cookie"] ||
-    $request.headers["cookie"];
-
-    if (cookie) {
-
-        $persistentStore.write(
-            cookie,
-            "dounai_cookie"
-        );
-
-        $notification.post(
-            "Dounai",
-            "Cookie更新成功",
-            ""
-        );
-    }
+if (!newCookie || newCookie === oldCookie) {
+    $done({});
 }
 
+$persistentStore.write(newCookie, "dounai_cookie");
+$notification.post("Dounai", "Cookie 更新成功", "");
 $done({});
