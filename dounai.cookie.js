@@ -19,21 +19,28 @@ const newCookie =
     $request.headers["Cookie"] ||
     $request.headers["cookie"];
 
-//==================================================
-// Cookie为空直接退出
-//==================================================
-
 if (!newCookie) {
+    console.log("[Dounai] 未获取到Cookie");
     $done({});
 }
+
+//==================================================
+// 读取旧 Cookie
+//==================================================
+
+const oldCookie = $persistentStore.read(COOKIE_KEY);
+
+console.log("[Dounai] 新Cookie：" + newCookie);
+console.log("[Dounai] 旧Cookie：" + oldCookie);
 
 //==================================================
 // 判断 Cookie 是否变化
 //==================================================
 
-const oldCookie = $persistentStore.read(COOKIE_KEY);
-
 if (oldCookie === newCookie) {
+
+    console.log("[Dounai] Cookie未变化");
+
     $done({});
 }
 
@@ -43,13 +50,14 @@ if (oldCookie === newCookie) {
 
 $persistentStore.write(newCookie, COOKIE_KEY);
 
+console.log("[Dounai] Cookie已更新");
+
 $notification.post(
     "Dounai",
     "Cookie 更新成功",
     ""
 );
-console.log("新Cookie：" + newCookie);
-console.log("旧Cookie：" + oldCookie);
+
 //==================================================
 // 结束
 //==================================================
