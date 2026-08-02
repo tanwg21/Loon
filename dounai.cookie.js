@@ -11,30 +11,34 @@
 
 const COOKIE_KEY = "dounai_cookie";
 
+
 //==================================================
-// 获取 Cookie
+// 获取Cookie
 //==================================================
 
 const newCookie =
     $request.headers["Cookie"] ||
     $request.headers["cookie"];
 
+
 if (!newCookie) {
+
     console.log("[Dounai] 未获取到Cookie");
+
     $done({});
 }
 
-//==================================================
-// 读取旧 Cookie
-//==================================================
-
-const oldCookie = $persistentStore.read(COOKIE_KEY);
-
-console.log("[Dounai] 新Cookie：" + newCookie);
-console.log("[Dounai] 旧Cookie：" + oldCookie);
 
 //==================================================
-// 判断 Cookie 是否变化
+// 读取旧Cookie
+//==================================================
+
+const oldCookie =
+    $persistentStore.read(COOKIE_KEY);
+
+
+//==================================================
+// 判断Cookie是否变化
 //==================================================
 
 if (oldCookie === newCookie) {
@@ -44,19 +48,26 @@ if (oldCookie === newCookie) {
     $done({});
 }
 
+
 //==================================================
-// 保存 Cookie
+// 保存Cookie
 //==================================================
 
-$persistentStore.write(newCookie, COOKIE_KEY);
+$persistentStore.write(
+    newCookie,
+    COOKIE_KEY
+);
 
-console.log("[Dounai] Cookie已更新");
+
+console.log("[Dounai] Cookie更新成功");
+
 
 $notification.post(
     "Dounai",
-    "Cookie 更新成功",
-    ""
+    "Cookie更新成功",
+    "已保存新的登录状态"
 );
+
 
 //==================================================
 // 结束
