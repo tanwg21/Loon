@@ -1,10 +1,56 @@
-const newCookie = $request.headers["Cookie"] || $request.headers["cookie"];
-const oldCookie = $persistentStore.read("dounai_cookie");
+/**************************************************
+ * 名称：Dounai Cookie获取
+ * 作者：tanwg21
+ * 版本：1.0.0
+ * 更新时间：2026-08-02
+ **************************************************/
 
-if (!newCookie || newCookie === oldCookie) {
+//==================================================
+// 配置
+//==================================================
+
+const COOKIE_KEY = "dounai_cookie";
+
+//==================================================
+// 获取 Cookie
+//==================================================
+
+const newCookie =
+    $request.headers["Cookie"] ||
+    $request.headers["cookie"];
+
+//==================================================
+// Cookie为空直接退出
+//==================================================
+
+if (!newCookie) {
     $done({});
 }
 
-$persistentStore.write(newCookie, "dounai_cookie");
-$notification.post("Dounai", "Cookie 更新成功", "");
+//==================================================
+// 判断 Cookie 是否变化
+//==================================================
+
+const oldCookie = $persistentStore.read(COOKIE_KEY);
+
+if (oldCookie === newCookie) {
+    $done({});
+}
+
+//==================================================
+// 保存 Cookie
+//==================================================
+
+$persistentStore.write(newCookie, COOKIE_KEY);
+
+$notification.post(
+    "Dounai",
+    "Cookie 更新成功",
+    ""
+);
+
+//==================================================
+// 结束
+//==================================================
+
 $done({});
