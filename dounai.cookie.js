@@ -10,8 +10,7 @@
 //==================================================
 
 const COOKIE_KEY = "dounai_cookie";
-console.log("新Cookie：" + newCookie);
-console.log("旧Cookie：" + oldCookie);
+
 //==================================================
 // 获取 Cookie
 //==================================================
@@ -49,7 +48,8 @@ $notification.post(
     "Cookie 更新成功",
     ""
 );
-
+console.log("新Cookie：" + newCookie);
+console.log("旧Cookie：" + oldCookie);
 //==================================================
 // 结束
 //==================================================
