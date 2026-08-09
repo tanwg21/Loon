@@ -1,10 +1,11 @@
 /**************************************************
  * 名称：Dounai 自动签到 (Loon / Quantumult X)
  * 作者：tanwg21
- * 版本：2.3.0
+ * 版本：2.4.0
  **************************************************/
 
 const COOKIE_KEY = "dounai_cookie";
+const BASE_URL = "https://14.137.237.0:1443";
 
 // 判断当前触发环境：抓包拦截还是定时运行
 if (typeof $request !== 'undefined') {
@@ -37,7 +38,7 @@ function checkIn() {
     const cookie = $persistentStore.read(COOKIE_KEY);
 
     if (!cookie) {
-        $notification.post("Dounai 签到", "⚠️ Cookie 不存在", "请在浏览器登录 dounai.pro/user/panel 获取");
+        $notification.post("Dounai 签到", "⚠️ Cookie 不存在", "请在浏览器登录面板获取");
         return $done();
     }
 
@@ -45,11 +46,11 @@ function checkIn() {
     console.log("Cookie: " + cookie);
 
     const options = {
-        url: "https://dounai.pro/user/checkin",
+        url: `${BASE_URL}/user/checkin`,
         headers: {
             "Cookie": cookie,
-            "Origin": "https://dounai.pro",
-            "Referer": "https://dounai.pro/user/panel",
+            "Origin": BASE_URL,
+            "Referer": `${BASE_URL}/user/panel`,
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "X-Requested-With": "XMLHttpRequest",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
