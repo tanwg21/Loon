@@ -1,39 +1,30 @@
 /**************************************************
  * 名称：Dounai 自动签到 (Loon / Quantumult X)
  * 作者：tanwg21
- * 版本：2.4.0
+ * 版本：2.5.0
+ * 修复：补充 CSRF 校验所需的 Headers 请求头
  **************************************************/
 
 const COOKIE_KEY = "dounai_cookie";
 const BASE_URL = "https://14.137.237.0:1443";
 
-// 判断当前触发环境：抓包拦截还是定时运行
 if (typeof $request !== 'undefined') {
     getCookie();
 } else {
     checkIn();
 }
 
-/**
- * 1. 自动截获并持久化保存 Cookie
- */
 function getCookie() {
     if ($request && $request.headers) {
         const cookie = $request.headers['Cookie'] || $request.headers['cookie'];
         if (cookie) {
             $persistentStore.write(cookie, COOKIE_KEY);
             $notification.post("Dounai", "Cookie 获取成功 🎉", "已自动更新持久化凭证");
-            console.log("[Dounai] 新 Cookie 已写入: " + cookie);
-        } else {
-            $notification.post("Dounai", "Cookie 获取失败 ❌", "请求头中未包含 Cookie 字段");
         }
     }
     $done({});
 }
 
-/**
- * 2. 执行自动签到
- */
 function checkIn() {
     const cookie = $persistentStore.read(COOKIE_KEY);
 
@@ -52,9 +43,14 @@ function checkIn() {
             "Origin": BASE_URL,
             "Referer": `${BASE_URL}/user/panel`,
             "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "X-Requested-With": "XMLHttpRequest",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
-        }
+        },
+        body: "" // 部分服务器要求 POST 必须带 body 参数
     };
 
     $httpClient.post(options, (err, resp, data) => {
@@ -68,7 +64,6 @@ function checkIn() {
         console.log(`HTTP Status: ${status}`);
         console.log(`Response Data: ${data}`);
 
-        // HTTP 状态码非 200 处理
         if (status === 401 || status === 403) {
             $notification.post("Dounai 签到", "⚠️ Cookie 已过期", "登录凭证失效，请重新登录网页获取");
             return $done();
@@ -84,7 +79,10 @@ function checkIn() {
             const msg = obj.msg || obj.message || "";
             const isSuccess = obj.ret == 1 || obj.code == 200 || obj.status === "success";
 
-            if (isSuccess && (msg.includes("获得了") || msg.includes("成功"))) {
+            // 判断返回逻辑
+            if (msg.includes("刷新页面")) {
+                $notification.post("❌ Dounai 签到", "CSRF 校验失败", "请在 Safari 中打开面板刷新并重新获取 Cookie");
+            } else if (isSuccess && (msg.includes("获得了") || msg.includes("成功"))) {
                 $notification.post("✅ Dounai", "签到成功", msg);
             } else if (msg.includes("已签到") || msg.includes("续过命") || msg.includes("重复")) {
                 $notification.post("ℹ️ Dounai", "今天已签到", msg);
@@ -94,7 +92,6 @@ function checkIn() {
 
         } catch (e) {
             console.log("JSON 解析异常: " + e.message);
-            // 容错处理：部分站点直接返回纯文本提示
             if (data && (data.includes("已签到") || data.includes("续过命"))) {
                 $notification.post("ℹ️ Dounai", "今天已签到", "文本判定完成");
             } else {
