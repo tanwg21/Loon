@@ -3,7 +3,7 @@
 #!author=tanwg21
 
 [MITM]
-hostname = 14.137.237.0
+hostname = 14.137.237.0:1443, 14.137.237.0
 
 [Script]
 
