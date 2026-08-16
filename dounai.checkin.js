@@ -1,13 +1,12 @@
 /**************************************************
- * 名称：Dounai 自动签到与账号信息查询
+ * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.3.0
+ * 版本：3.4.0
  * 更新时间：2026-08-16
  * 功能：
  *   自动刷新页面 Token
- *   加入防风控请求延迟 (2.5s)
- *   自动合并持久化 Cookie
- *   签到并附带显示账号流量与状态信息
+ *   防风控延迟 (2.5s)
+ *   自动签到并精准解析面板页面中的流量/到期数据
  **************************************************/
 
 //==================================================
@@ -95,7 +94,7 @@ function autoRefreshAndCheckIn() {
         savedCookie.trim().replace(/;$/, "");
 
 
-    console.log("========== [1/2] 刷新页面获取最新Token ==========");
+    console.log("========== [1/3] 刷新页面获取最新Token ==========");
 
 
     const getOptions = {
@@ -154,7 +153,7 @@ function autoRefreshAndCheckIn() {
 
         setTimeout(() => {
 
-            console.log("========== [2/2] 发送正式签到请求 ==========");
+            console.log("========== [2/3] 发送正式签到请求 ==========");
 
             executeCheckIn(activeCookie);
 
@@ -166,7 +165,7 @@ function autoRefreshAndCheckIn() {
 
 
 //==================================================
-// 执行签到与获取账号数据
+// 执行签到
 //==================================================
 
 function executeCheckIn(cookie) {
@@ -189,6 +188,8 @@ function executeCheckIn(cookie) {
 
     $httpClient.post(postOptions, (err, resp, data) => {
 
+        let checkinMsg = "";
+
         if (err) {
 
             console.log("签到请求失败: " + JSON.stringify(err));
@@ -206,9 +207,6 @@ function executeCheckIn(cookie) {
 
         const status =
             resp ? (resp.status || resp.statusCode) : 0;
-
-        console.log(`HTTP Status: ${status}`);
-        console.log(`Response Data: ${data}`);
 
 
         if (status === 401 || status === 403) {
@@ -228,82 +226,114 @@ function executeCheckIn(cookie) {
 
             const obj = JSON.parse(data);
 
-            const msg =
+            checkinMsg =
                 obj.msg ||
                 obj.message ||
-                "";
-
-            const isSuccess =
-                obj.ret == 1 ||
-                obj.code == 200 ||
-                obj.status === "success";
-
-
-            // 解析剩余流量/总流量数据（如果接口返回了这些字段）
-            let extraInfo = "";
-
-            if (obj.trafficInfo) {
-
-                extraInfo = `\n📊 剩余流量: ${obj.trafficInfo.unconsumed || "未知"}`;
-
-            } else if (obj.unconsumedTraffic) {
-
-                extraInfo = `\n📊 剩余流量: ${obj.unconsumedTraffic}`;
-
-            }
-
-
-            if (isSuccess && (msg.includes("获得了") || msg.includes("成功"))) {
-
-                $notification.post(
-                    "✅ Dounai 签到成功",
-                    msg,
-                    `🎉 签到奖励已发放${extraInfo}`
-                );
-
-            } else if (
-                msg.includes("已签到") ||
-                msg.includes("续过命") ||
-                msg.includes("重复")
-            ) {
-
-                $notification.post(
-                    "ℹ️ Dounai 今天已签到",
-                    msg,
-                    `💡 无需重复签到${extraInfo}`
-                );
-
-            } else {
-
-                $notification.post(
-                    "❌ Dounai 签到失败",
-                    msg || "未知错误",
-                    "请检查账号状态"
-                );
-
-            }
+                "签到完成";
 
         } catch (e) {
 
             if (data && (data.includes("已签到") || data.includes("续过命"))) {
 
-                $notification.post(
-                    "ℹ️ Dounai 今天已签到",
-                    "文本匹配判定完成",
-                    "已完成今日自动续签"
-                );
+                checkinMsg = "今天已经签到过了哦";
 
             } else {
 
-                $notification.post(
-                    "Dounai",
-                    "❌ 数据解析异常",
-                    data ? data.slice(0, 100) : "无返回内容"
-                );
+                checkinMsg = "签到响应解析完成";
 
             }
 
         }
+
+
+        console.log("========== [3/3] 正在获取详细账号流量状态 ==========");
+
+        getUserInfo(cookie, checkinMsg);
+
+    });
+
+}
+
+
+//==================================================
+// 解析面板 HTML 页面获取流量数据
+//==================================================
+
+function getUserInfo(cookie, checkinMsg) {
+
+    const getPanelOptions = {
+        url: `${BASE_URL}/user/panel`,
+        headers: {
+            "Host": "14.137.237.0:1443",
+            "Cookie": cookie,
+            "Connection": "keep-alive",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+    };
+
+
+    $httpClient.get(getPanelOptions, (err, resp, data) => {
+
+        let trafficInfoStr = "";
+
+
+        if (!err && data) {
+
+            // 正则匹配面板中的流量字段
+            const restMatch =
+                data.match(/剩余流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i) ||
+                data.match(/可用流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
+
+            const usedMatch =
+                data.match(/已用流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
+
+            const totalMatch =
+                data.match(/总流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
+
+            const expireMatch =
+                data.match(/等级到期[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<]*)/i) ||
+                data.match(/到期时间[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<]*)/i);
+
+
+            let restTraffic =
+                restMatch ? restMatch[1].trim() : "";
+
+            let usedTraffic =
+                usedMatch ? usedMatch[1].trim() : "";
+
+            let totalTraffic =
+                totalMatch ? totalMatch[1].trim() : "";
+
+            let expireTime =
+                expireMatch ? expireMatch[1].trim() : "";
+
+
+            if (restTraffic || usedTraffic) {
+
+                trafficInfoStr =
+                    `\n📊 剩余: ${restTraffic || "未知"}` +
+                    (totalTraffic ? ` / 共 ${totalTraffic}` : "") +
+                    (usedTraffic ? ` (已用: ${usedTraffic})` : "") +
+                    (expireTime ? `\n⏳ 到期: ${expireTime}` : "");
+
+            }
+
+        }
+
+
+        // 组合最终通知文本
+        const title = "✅ Dounai 自动签到";
+
+        const subtitle = checkinMsg;
+
+        const body =
+            trafficInfoStr ?
+            `🎉 状态: ${checkinMsg}${trafficInfoStr}` :
+            `🎉 状态: ${checkinMsg}\n💡 未能从页面匹配到流量结构`;
+
+
+        $notification.post(title, subtitle, body);
 
 
         $done();
