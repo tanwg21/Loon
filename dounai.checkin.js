@@ -1,12 +1,12 @@
 /**************************************************
  * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.4.0
+ * 版本：3.5.0
  * 更新时间：2026-08-16
  * 功能：
  *   自动刷新页面 Token
  *   防风控延迟 (2.5s)
- *   自动签到并精准解析面板页面中的流量/到期数据
+ *   自动签到并打印/解析面板页面中的流量数据
  **************************************************/
 
 //==================================================
@@ -256,7 +256,7 @@ function executeCheckIn(cookie) {
 
 
 //==================================================
-// 解析面板 HTML 页面获取流量数据
+// 解析面板 HTML 页面获取流量数据（带调试日志）
 //==================================================
 
 function getUserInfo(cookie, checkinMsg) {
@@ -275,66 +275,60 @@ function getUserInfo(cookie, checkinMsg) {
 
     $httpClient.get(getPanelOptions, (err, resp, data) => {
 
-        let trafficInfoStr = "";
-
-
         if (!err && data) {
 
-            // 正则匹配面板中的流量字段
+            // 打印日志方便查看面板具体结构
+            console.log("========== [面板HTML片段] ==========");
+            console.log(data.slice(0, 2000));
+            console.log("====================================");
+
+
+            // 宽泛匹配常见关键词及紧随其后的数值+单位
             const restMatch =
-                data.match(/剩余流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i) ||
-                data.match(/可用流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
+                data.match(/(剩余|可用|Unused|Unconsumed|Remaining)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
             const usedMatch =
-                data.match(/已用流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
+                data.match(/(已用|Used)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
             const totalMatch =
-                data.match(/总流量[:：\s]*([0-9\.]+\s*[KMGT]?B)/i);
-
-            const expireMatch =
-                data.match(/等级到期[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<]*)/i) ||
-                data.match(/到期时间[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<]*)/i);
+                data.match(/(总|全部|Total)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
 
             let restTraffic =
-                restMatch ? restMatch[1].trim() : "";
+                restMatch ? restMatch[2] : "";
 
             let usedTraffic =
-                usedMatch ? usedMatch[1].trim() : "";
+                usedMatch ? usedMatch[2] : "";
 
             let totalTraffic =
-                totalMatch ? totalMatch[1].trim() : "";
-
-            let expireTime =
-                expireMatch ? expireMatch[1].trim() : "";
+                totalMatch ? totalMatch[2] : "";
 
 
-            if (restTraffic || usedTraffic) {
+            if (restTraffic || usedTraffic || totalTraffic) {
 
-                trafficInfoStr =
+                const trafficStr =
                     `\n📊 剩余: ${restTraffic || "未知"}` +
                     (totalTraffic ? ` / 共 ${totalTraffic}` : "") +
-                    (usedTraffic ? ` (已用: ${usedTraffic})` : "") +
-                    (expireTime ? `\n⏳ 到期: ${expireTime}` : "");
+                    (usedTraffic ? ` (已用: ${usedTraffic})` : "");
+
+                $notification.post(
+                    "✅ Dounai 自动签到",
+                    checkinMsg,
+                    `🎉 状态: ${checkinMsg}${trafficStr}`
+                );
+
+                return $done();
 
             }
 
         }
 
 
-        // 组合最终通知文本
-        const title = "✅ Dounai 自动签到";
-
-        const subtitle = checkinMsg;
-
-        const body =
-            trafficInfoStr ?
-            `🎉 状态: ${checkinMsg}${trafficInfoStr}` :
-            `🎉 状态: ${checkinMsg}\n💡 未能从页面匹配到流量结构`;
-
-
-        $notification.post(title, subtitle, body);
-
+        $notification.post(
+            "✅ Dounai 自动签到",
+            checkinMsg,
+            `🎉 状态: ${checkinMsg}\n💡 未能匹配到流量，请查看日志 HTML`
+        );
 
         $done();
 
