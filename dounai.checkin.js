@@ -1,12 +1,13 @@
 /**************************************************
- * 名称：Dounai 自动签到
+ * 名称：Dounai 自动签到与账号信息查询
  * 作者：tanwg21
- * 版本：3.2.0
+ * 版本：3.3.0
  * 更新时间：2026-08-16
  * 功能：
  *   自动刷新页面 Token
  *   加入防风控请求延迟 (2.5s)
- *   网络异常降级签到
+ *   自动合并持久化 Cookie
+ *   签到并附带显示账号流量与状态信息
  **************************************************/
 
 //==================================================
@@ -148,7 +149,7 @@ function autoRefreshAndCheckIn() {
         }
 
 
-        console.log("⏳ 为防止防火墙拦截，等待 2.5 秒后发送签到...");
+        console.log("⏳ 防风控等待 2.5 秒后发送签到...");
 
 
         setTimeout(() => {
@@ -165,7 +166,7 @@ function autoRefreshAndCheckIn() {
 
 
 //==================================================
-// 执行签到
+// 执行签到与获取账号数据
 //==================================================
 
 function executeCheckIn(cookie) {
@@ -194,8 +195,8 @@ function executeCheckIn(cookie) {
 
             $notification.post(
                 "Dounai 签到",
-                "❌ 网络错误/防火墙拦截",
-                "请检查分流规则是否已设为走代理节点"
+                "❌ 网络错误",
+                "请检查代理节点连通性"
             );
 
             return $done();
@@ -238,12 +239,26 @@ function executeCheckIn(cookie) {
                 obj.status === "success";
 
 
+            // 解析剩余流量/总流量数据（如果接口返回了这些字段）
+            let extraInfo = "";
+
+            if (obj.trafficInfo) {
+
+                extraInfo = `\n📊 剩余流量: ${obj.trafficInfo.unconsumed || "未知"}`;
+
+            } else if (obj.unconsumedTraffic) {
+
+                extraInfo = `\n📊 剩余流量: ${obj.unconsumedTraffic}`;
+
+            }
+
+
             if (isSuccess && (msg.includes("获得了") || msg.includes("成功"))) {
 
                 $notification.post(
-                    "✅ Dounai",
-                    "签到成功",
-                    msg
+                    "✅ Dounai 签到成功",
+                    msg,
+                    `🎉 签到奖励已发放${extraInfo}`
                 );
 
             } else if (
@@ -253,17 +268,17 @@ function executeCheckIn(cookie) {
             ) {
 
                 $notification.post(
-                    "ℹ️ Dounai",
-                    "今天已签到",
-                    msg
+                    "ℹ️ Dounai 今天已签到",
+                    msg,
+                    `💡 无需重复签到${extraInfo}`
                 );
 
             } else {
 
                 $notification.post(
-                    "❌ Dounai",
-                    "签到失败",
-                    msg || "未知错误"
+                    "❌ Dounai 签到失败",
+                    msg || "未知错误",
+                    "请检查账号状态"
                 );
 
             }
@@ -273,16 +288,16 @@ function executeCheckIn(cookie) {
             if (data && (data.includes("已签到") || data.includes("续过命"))) {
 
                 $notification.post(
-                    "ℹ️ Dounai",
-                    "今天已签到",
-                    "文本判定完成"
+                    "ℹ️ Dounai 今天已签到",
+                    "文本匹配判定完成",
+                    "已完成今日自动续签"
                 );
 
             } else {
 
                 $notification.post(
                     "Dounai",
-                    "❌ 解析失败",
+                    "❌ 数据解析异常",
                     data ? data.slice(0, 100) : "无返回内容"
                 );
 
