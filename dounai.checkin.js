@@ -1,12 +1,12 @@
 /**************************************************
  * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.6.0
+ * 版本：3.7.0 (正式版)
  * 更新时间：2026-08-16
  * 功能：
  *   自动刷新页面 Token
  *   防风控延迟 (2.5s)
- *   自动签到并全页解析面板流量数据
+ *   自动签到并精准提取/计算剩余与已用流量
  **************************************************/
 
 //==================================================
@@ -94,9 +94,6 @@ function autoRefreshAndCheckIn() {
         savedCookie.trim().replace(/;$/, "");
 
 
-    console.log("========== [1/3] 刷新页面获取最新Token ==========");
-
-
     const getOptions = {
         url: `${BASE_URL}/user/panel`,
         headers: {
@@ -115,45 +112,28 @@ function autoRefreshAndCheckIn() {
         let activeCookie = savedCookie;
 
 
-        if (err) {
+        if (!err && resp && resp.headers) {
 
-            console.log("⚠️ GET刷新失败，尝试直接签到: " + JSON.stringify(err));
+            const setCookie =
+                resp.headers["Set-Cookie"] ||
+                resp.headers["set-cookie"];
 
-        } else {
+            if (setCookie) {
 
-            console.log("GET Status: " + (resp ? resp.status : "OK"));
+                activeCookie =
+                    mergeCookies(savedCookie, setCookie);
 
-            if (resp && resp.headers) {
-
-                const setCookie =
-                    resp.headers["Set-Cookie"] ||
-                    resp.headers["set-cookie"];
-
-                if (setCookie) {
-
-                    console.log("[Dounai] 收到服务端更新Set-Cookie");
-
-                    activeCookie =
-                        mergeCookies(savedCookie, setCookie);
-
-                    $persistentStore.write(
-                        activeCookie,
-                        COOKIE_KEY
-                    );
-
-                }
+                $persistentStore.write(
+                    activeCookie,
+                    COOKIE_KEY
+                );
 
             }
 
         }
 
 
-        console.log("⏳ 防风控等待 2.5 秒后发送签到...");
-
-
         setTimeout(() => {
-
-            console.log("========== [2/3] 发送正式签到请求 ==========");
 
             executeCheckIn(activeCookie);
 
@@ -191,8 +171,6 @@ function executeCheckIn(cookie) {
         let checkinMsg = "";
 
         if (err) {
-
-            console.log("签到请求失败: " + JSON.stringify(err));
 
             $notification.post(
                 "Dounai 签到",
@@ -246,8 +224,6 @@ function executeCheckIn(cookie) {
         }
 
 
-        console.log("========== [3/3] 正在全页解析面板流量数据 ==========");
-
         getUserInfo(cookie, checkinMsg);
 
     });
@@ -256,7 +232,7 @@ function executeCheckIn(cookie) {
 
 
 //==================================================
-// 全页 HTML 解析流量数据
+// 全页 HTML 解析与数据组装
 //==================================================
 
 function getUserInfo(cookie, checkinMsg) {
@@ -277,57 +253,53 @@ function getUserInfo(cookie, checkinMsg) {
 
         if (!err && data) {
 
-            // 过滤 HTML 标签，清洗成干净的纯文本
             const cleanText = data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
-            // 1. 寻找“剩余/可用/剩余流量”之后的流量数值
+
             const restMatch =
                 cleanText.match(/(?:剩余流量|可用流量|剩余)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
                 cleanText.match(/(?:剩余|可用)[\s\S]{0,20}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
-            // 2. 寻找“已用流量/已用”数值
             const usedMatch =
                 cleanText.match(/(?:已用流量|已用)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
                 cleanText.match(/已用[\s\S]{0,20}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
-            // 3. 寻找“总流量/共”数值
             const totalMatch =
-                cleanText.match(/(?:总流量|共)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
-                cleanText.match(/(?:等级到期|到期时间)[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2})/i);
-
-            // 4. 备用：匹配形如 "12.34 GB / 100 GB" 的典型格式
-            const slashMatch = cleanText.match(/([0-9\.]+\s*(?:MB|GB|TB))\s*\/\s*([0-9\.]+\s*(?:MB|GB|TB))/i);
+                cleanText.match(/(?:总流量|共)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
 
-            let restStr = restMatch ? restMatch[1] : "";
+            let restStr = restMatch ? restMatch[1].replace(/\s+/, "") : "";
 
-            let usedStr = usedMatch ? usedMatch[1] : "";
+            let usedStr = usedMatch ? usedMatch[1].replace(/\s+/, "") : "";
 
-            let totalStr = totalMatch ? totalMatch[1] : "";
+            let totalStr = totalMatch ? totalMatch[1].replace(/\s+/, "") : "";
 
 
-            if (!restStr && slashMatch) {
+            // 如果没拿到总流量，自动汇总
+            if (!totalStr && restStr && usedStr) {
 
-                usedStr = slashMatch[1];
+                const rNum = parseFloat(restStr);
 
-                totalStr = slashMatch[2];
+                const uNum = parseFloat(usedStr);
+
+                const unit = restStr.replace(/[0-9\.]/g, "");
+
+                if (!isNaN(rNum) && !isNaN(uNum)) {
+
+                    totalStr = (rNum + uNum).toFixed(2) + unit;
+
+                }
 
             }
 
 
-            // 打印清洗出来的流量关键日志
-            console.log(`[流量解析结果] 剩余: ${restStr || "未匹配"}, 已用: ${usedStr || "未匹配"}, 总计: ${totalStr || "未匹配"}`);
+            if (restStr || usedStr) {
 
+                let trafficInfo = `\n📊 剩余: ${restStr || "未知"}`;
 
-            if (restStr || usedStr || totalStr) {
+                if (usedStr) trafficInfo += ` | 已用: ${usedStr}`;
 
-                let trafficInfo = "\n📊 ";
-
-                if (restStr) trafficInfo += `剩余: ${restStr} `;
-
-                if (usedStr) trafficInfo += `| 已用: ${usedStr} `;
-
-                if (totalStr) trafficInfo += `/ 共 ${totalStr}`;
+                if (totalStr) trafficInfo += ` (总计: ${totalStr})`;
 
 
                 $notification.post(
@@ -346,7 +318,7 @@ function getUserInfo(cookie, checkinMsg) {
         $notification.post(
             "✅ Dounai 自动签到",
             checkinMsg,
-            `🎉 状态: ${checkinMsg}\n💡 签到成功（页面未找到明确流量字段）`
+            `🎉 状态: ${checkinMsg}`
         );
 
         $done();
