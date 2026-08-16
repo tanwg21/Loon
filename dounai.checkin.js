@@ -1,12 +1,12 @@
 /**************************************************
  * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.5.0
+ * 版本：3.6.0
  * 更新时间：2026-08-16
  * 功能：
  *   自动刷新页面 Token
  *   防风控延迟 (2.5s)
- *   自动签到并打印/解析面板页面中的流量数据
+ *   自动签到并全页解析面板流量数据
  **************************************************/
 
 //==================================================
@@ -246,7 +246,7 @@ function executeCheckIn(cookie) {
         }
 
 
-        console.log("========== [3/3] 正在获取详细账号流量状态 ==========");
+        console.log("========== [3/3] 正在全页解析面板流量数据 ==========");
 
         getUserInfo(cookie, checkinMsg);
 
@@ -256,7 +256,7 @@ function executeCheckIn(cookie) {
 
 
 //==================================================
-// 解析面板 HTML 页面获取流量数据（带调试日志）
+// 全页 HTML 解析流量数据
 //==================================================
 
 function getUserInfo(cookie, checkinMsg) {
@@ -277,44 +277,63 @@ function getUserInfo(cookie, checkinMsg) {
 
         if (!err && data) {
 
-            // 打印日志方便查看面板具体结构
-            console.log("========== [面板HTML片段] ==========");
-            console.log(data.slice(0, 2000));
-            console.log("====================================");
+            // 过滤 HTML 标签，清洗成干净的纯文本
+            const cleanText = data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
-
-            // 宽泛匹配常见关键词及紧随其后的数值+单位
+            // 1. 寻找“剩余/可用/剩余流量”之后的流量数值
             const restMatch =
-                data.match(/(剩余|可用|Unused|Unconsumed|Remaining)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
+                cleanText.match(/(?:剩余流量|可用流量|剩余)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
+                cleanText.match(/(?:剩余|可用)[\s\S]{0,20}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
+            // 2. 寻找“已用流量/已用”数值
             const usedMatch =
-                data.match(/(已用|Used)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
+                cleanText.match(/(?:已用流量|已用)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
+                cleanText.match(/已用[\s\S]{0,20}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
+            // 3. 寻找“总流量/共”数值
             const totalMatch =
-                data.match(/(总|全部|Total)[\s\S]{0,50}?([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
+                cleanText.match(/(?:总流量|共)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i) ||
+                cleanText.match(/(?:等级到期|到期时间)[:：\s]*([0-9]{4}-[0-9]{2}-[0-9]{2})/i);
+
+            // 4. 备用：匹配形如 "12.34 GB / 100 GB" 的典型格式
+            const slashMatch = cleanText.match(/([0-9\.]+\s*(?:MB|GB|TB))\s*\/\s*([0-9\.]+\s*(?:MB|GB|TB))/i);
 
 
-            let restTraffic =
-                restMatch ? restMatch[2] : "";
+            let restStr = restMatch ? restMatch[1] : "";
 
-            let usedTraffic =
-                usedMatch ? usedMatch[2] : "";
+            let usedStr = usedMatch ? usedMatch[1] : "";
 
-            let totalTraffic =
-                totalMatch ? totalMatch[2] : "";
+            let totalStr = totalMatch ? totalMatch[1] : "";
 
 
-            if (restTraffic || usedTraffic || totalTraffic) {
+            if (!restStr && slashMatch) {
 
-                const trafficStr =
-                    `\n📊 剩余: ${restTraffic || "未知"}` +
-                    (totalTraffic ? ` / 共 ${totalTraffic}` : "") +
-                    (usedTraffic ? ` (已用: ${usedTraffic})` : "");
+                usedStr = slashMatch[1];
+
+                totalStr = slashMatch[2];
+
+            }
+
+
+            // 打印清洗出来的流量关键日志
+            console.log(`[流量解析结果] 剩余: ${restStr || "未匹配"}, 已用: ${usedStr || "未匹配"}, 总计: ${totalStr || "未匹配"}`);
+
+
+            if (restStr || usedStr || totalStr) {
+
+                let trafficInfo = "\n📊 ";
+
+                if (restStr) trafficInfo += `剩余: ${restStr} `;
+
+                if (usedStr) trafficInfo += `| 已用: ${usedStr} `;
+
+                if (totalStr) trafficInfo += `/ 共 ${totalStr}`;
+
 
                 $notification.post(
                     "✅ Dounai 自动签到",
                     checkinMsg,
-                    `🎉 状态: ${checkinMsg}${trafficStr}`
+                    `🎉 状态: ${checkinMsg}${trafficInfo}`
                 );
 
                 return $done();
@@ -327,7 +346,7 @@ function getUserInfo(cookie, checkinMsg) {
         $notification.post(
             "✅ Dounai 自动签到",
             checkinMsg,
-            `🎉 状态: ${checkinMsg}\n💡 未能匹配到流量，请查看日志 HTML`
+            `🎉 状态: ${checkinMsg}\n💡 签到成功（页面未找到明确流量字段）`
         );
 
         $done();
