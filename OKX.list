@@ -1,12 +1,16 @@
-# NAME: OKX
-# AUTHOR: Tanwg21
-# UPDATED: 2025-07-20
-# DOMAIN-SUFFIX: 5
-# TOTAL: 5
-DOMAIN-SUFFIX,okex.com
-DOMAIN-SUFFIX,oklink.com
-DOMAIN-SUFFIX,okx.com
-DOMAIN-SUFFIX,wsdexpri.okx.com.cdn.cloudflare.net
-DOMAIN-SUFFIX,www.okx.com.cdn.cloudflare.net
-DOMAIN-SUFFIX,wspri.okx.com.cdn.cloudflare.net
-DOMAIN-SUFFIX,web3.okx.com.cdn.cloudflare.net
+[Rule]
+# OKX 官方及服务相关域名匹配
+DOMAIN-KEYWORD, okx, OKX
+DOMAIN-SUFFIX, okx.com, OKX
+DOMAIN-SUFFIX, okex.com, OKX
+DOMAIN-SUFFIX, okx-dns.com, OKX
+DOMAIN-SUFFIX, okx-dns1.com, OKX
+DOMAIN-SUFFIX, okx-dns2.com, OKX
+DOMAIN-SUFFIX, okx-dns3.com, OKX
+DOMAIN-SUFFIX, okx-dns4.com, OKX
+DOMAIN-SUFFIX, okex.org, OKX
+DOMAIN-SUFFIX, okx.com.cdn.cloudflare.net, OKX
+
+# OKX CDN & API 常用服务
+DOMAIN-SUFFIX, okx-s3.com, OKX
+DOMAIN-SUFFIX, okx-app.com, OKX
