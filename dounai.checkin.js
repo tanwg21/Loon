@@ -1,12 +1,12 @@
 /**************************************************
  * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.7.0 (正式版)
- * 更新时间：2026-08-16
+ * 版本：3.8.0 (一屏通知优化版)
+ * 更新时间：2026-08-20
  * 功能：
  *   自动刷新页面 Token
  *   防风控延迟 (2.5s)
- *   自动签到并精准提取/计算剩余与已用流量
+ *   精简通知文本，保障系统通知栏直接看全流量
  **************************************************/
 
 //==================================================
@@ -207,17 +207,17 @@ function executeCheckIn(cookie) {
             checkinMsg =
                 obj.msg ||
                 obj.message ||
-                "签到完成";
+                "签到成功";
 
         } catch (e) {
 
             if (data && (data.includes("已签到") || data.includes("续过命"))) {
 
-                checkinMsg = "今天已经签到过了哦";
+                checkinMsg = "今天已签到过";
 
             } else {
 
-                checkinMsg = "签到响应解析完成";
+                checkinMsg = "签到完成";
 
             }
 
@@ -275,7 +275,6 @@ function getUserInfo(cookie, checkinMsg) {
             let totalStr = totalMatch ? totalMatch[1].replace(/\s+/, "") : "";
 
 
-            // 如果没拿到总流量，自动汇总
             if (!totalStr && restStr && usedStr) {
 
                 const rNum = parseFloat(restStr);
@@ -295,17 +294,16 @@ function getUserInfo(cookie, checkinMsg) {
 
             if (restStr || usedStr) {
 
-                let trafficInfo = `\n📊 剩余: ${restStr || "未知"}`;
+                // 紧凑横向排列，不折行，适合通知栏首屏显示
+                let bodyStr = `剩余:${restStr || "未知"} | 已用:${usedStr || "未知"}`;
 
-                if (usedStr) trafficInfo += ` | 已用: ${usedStr}`;
-
-                if (totalStr) trafficInfo += ` (总计: ${totalStr})`;
+                if (totalStr) bodyStr += ` | 共:${totalStr}`;
 
 
                 $notification.post(
-                    "✅ Dounai 自动签到",
-                    checkinMsg,
-                    `🎉 状态: ${checkinMsg}${trafficInfo}`
+                    "Dounai 签到",
+                    `🎉 ${checkinMsg}`,
+                    `📊 ${bodyStr}`
                 );
 
                 return $done();
@@ -316,9 +314,9 @@ function getUserInfo(cookie, checkinMsg) {
 
 
         $notification.post(
-            "✅ Dounai 自动签到",
-            checkinMsg,
-            `🎉 状态: ${checkinMsg}`
+            "Dounai 签到",
+            `🎉 ${checkinMsg}`,
+            "未获取到流量数据"
         );
 
         $done();
