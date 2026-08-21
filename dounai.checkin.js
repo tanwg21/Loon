@@ -1,12 +1,13 @@
 /**************************************************
  * 名称：Dounai 自动签到与账号数据查询
  * 作者：tanwg21
- * 版本：3.8.0 (一屏通知优化版)
- * 更新时间：2026-08-20
+ * 版本：3.9.0 (汇总 Dashboard 日志版)
+ * 更新时间：2026-08-21
  * 功能：
- *   自动刷新页面 Token
+ *   自动刷新 Token
  *   防风控延迟 (2.5s)
- *   精简通知文本，保障系统通知栏直接看全流量
+ *   自动签到与全页流量解析
+ *   美化控制台汇总日志输出 (Log Dashboard)
  **************************************************/
 
 //==================================================
@@ -16,6 +17,8 @@
 const COOKIE_KEY = "dounai_cookie";
 
 const BASE_URL = "https://14.137.237.0:1443";
+
+const SCRIPT_VERSION = "2026-08-21.v3.9";
 
 
 //==================================================
@@ -73,11 +76,16 @@ function getCookie() {
 
 function autoRefreshAndCheckIn() {
 
+    console.log(`[INFO] 脚本版本 ${SCRIPT_VERSION}`);
+
+
     let savedCookie =
         $persistentStore.read(COOKIE_KEY);
 
 
     if (!savedCookie) {
+
+        console.log("[ERROR] Cookie不存在，请先前往面板获取 Cookie");
 
         $notification.post(
             "Dounai 签到",
@@ -92,6 +100,14 @@ function autoRefreshAndCheckIn() {
 
     savedCookie =
         savedCookie.trim().replace(/;$/, "");
+
+
+    // 简单提取 UID 方便日志展示 (如从 Cookie 中提取 uid/key)
+    const uidMatch = savedCookie.match(/(?:uid|user_id|key)=([0-9a-zA-Z]+)/i);
+
+    const uidStr = uidMatch ? maskUid(uidMatch[1]) : "已获取 (已加密)";
+
+    console.log(`[INFO] 用户凭证 ${uidStr}`);
 
 
     const getOptions = {
@@ -172,6 +188,8 @@ function executeCheckIn(cookie) {
 
         if (err) {
 
+            console.log("[ERROR] 签到网络请求失败");
+
             $notification.post(
                 "Dounai 签到",
                 "❌ 网络错误",
@@ -188,6 +206,8 @@ function executeCheckIn(cookie) {
 
 
         if (status === 401 || status === 403) {
+
+            console.log("[WARN] 登录状态凭证已失效");
 
             $notification.post(
                 "Dounai 签到",
@@ -232,7 +252,7 @@ function executeCheckIn(cookie) {
 
 
 //==================================================
-// 全页 HTML 解析与数据组装
+// 全页 HTML 解析与日志面板（Dashboard）输出
 //==================================================
 
 function getUserInfo(cookie, checkinMsg) {
@@ -251,6 +271,13 @@ function getUserInfo(cookie, checkinMsg) {
 
     $httpClient.get(getPanelOptions, (err, resp, data) => {
 
+        let restStr = "未匹配";
+
+        let usedStr = "未匹配";
+
+        let totalStr = "未匹配";
+
+
         if (!err && data) {
 
             const cleanText = data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
@@ -268,14 +295,15 @@ function getUserInfo(cookie, checkinMsg) {
                 cleanText.match(/(?:总流量|共)[:：\s]*([0-9\.]+\s*(?:Bytes|B|KB|MB|GB|TB))/i);
 
 
-            let restStr = restMatch ? restMatch[1].replace(/\s+/, "") : "";
+            if (restMatch) restStr = restMatch[1].replace(/\s+/, "");
 
-            let usedStr = usedMatch ? usedMatch[1].replace(/\s+/, "") : "";
+            if (usedMatch) usedStr = usedMatch[1].replace(/\s+/, "");
 
-            let totalStr = totalMatch ? totalMatch[1].replace(/\s+/, "") : "";
+            if (totalMatch) totalStr = totalMatch[1].replace(/\s+/, "");
 
 
-            if (!totalStr && restStr && usedStr) {
+            // 自动补全总流量
+            if (totalStr === "未匹配" && restStr !== "未匹配" && usedStr !== "未匹配") {
 
                 const rNum = parseFloat(restStr);
 
@@ -291,24 +319,33 @@ function getUserInfo(cookie, checkinMsg) {
 
             }
 
-
-            if (restStr || usedStr) {
-
-                // 紧凑横向排列，不折行，适合通知栏首屏显示
-                let bodyStr = `剩余:${restStr || "未知"} | 已用:${usedStr || "未知"}`;
-
-                if (totalStr) bodyStr += ` | 共:${totalStr}`;
+        }
 
 
-                $notification.post(
-                    "Dounai 签到",
-                    `🎉 ${checkinMsg}`,
-                    `📊 ${bodyStr}`
-                );
+        // 打印控制台 Dashboard 结构化日志
+        console.log("====📣 Dounai 任务汇总====");
 
-                return $done();
+        console.log(`✅ 每日签到: ${checkinMsg}`);
 
-            }
+        console.log(`📊 剩余流量: ${restStr}`);
+
+        console.log(`📈 已用流量: ${usedStr}`);
+
+        console.log(`💾 账户总量: ${totalStr}`);
+
+
+        // 组装系统通知栏消息
+        let bodyStr = "";
+
+        if (restStr !== "未匹配") {
+
+            bodyStr = `剩余:${restStr} | 已用:${usedStr}`;
+
+            if (totalStr !== "未匹配") bodyStr += ` | 共:${totalStr}`;
+
+        } else {
+
+            bodyStr = "数据解析正常（未能匹配到流量字段）";
 
         }
 
@@ -316,8 +353,9 @@ function getUserInfo(cookie, checkinMsg) {
         $notification.post(
             "Dounai 签到",
             `🎉 ${checkinMsg}`,
-            "未获取到流量数据"
+            `📊 ${bodyStr}`
         );
+
 
         $done();
 
@@ -327,8 +365,17 @@ function getUserInfo(cookie, checkinMsg) {
 
 
 //==================================================
-// Cookie合并函数
+// 辅助函数
 //==================================================
+
+function maskUid(str) {
+
+    if (!str || str.length <= 3) return "***";
+
+    return str.slice(0, 3) + "***";
+
+}
+
 
 function mergeCookies(oldCookie, newSetCookie) {
 
