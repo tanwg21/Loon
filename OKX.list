@@ -15,8 +15,19 @@ DOMAIN-SUFFIX, okx.com.cdn.cloudflare.net, OKX
 DOMAIN-SUFFIX, okx-s3.com, OKX
 DOMAIN-SUFFIX, okx-app.com, OKX
 
+#币安
 DOMAIN-SUFFIX, wallet.binance.com, BN
 DOMAIN-SUFFIX, nbstream.binance.com, BN
 DOMAIN-SUFFIX, bin.bnbstatic.com, BN
 DOMAIN-SUFFIX, binance.com, BN
-DOMAIN-SUFFIX, nbstream.binance.com, BN
+DOMAIN-SUFFIX, appsflayer.com
+DOMAIN-SUFFIX, binance.cloud
+DOMAIN-SUFFIX, binance.me
+DOMAIN-SUFFIX, binancecnt.com
+DOMAIN-SUFFIX, binancefuture.com
+DOMAIN-SUFFIX, bnappzh.co
+DOMAIN-SUFFIX, bnbstatic.com
+DOMAIN-SUFFIX, bnbzh.ac
+DOMAIN-SUFFIX, bntrace.com
+DOMAIN-SUFFIX, saasexch.cc
+DOMAIN-SUFFIX, saasexch.com
